@@ -5,9 +5,8 @@ import chainer
 
 from chainercv.datasets import VOCDetectionDataset
 from chainercv.extensions import DetectionVisReport
-from chainercv.wrappers import bbox_resize_hook
-from chainercv.wrappers import SubtractWrapper
-from chainercv.wrappers import ResizeWrapper
+from chainercv.transforms import extend
+from chainercv.transforms import bbox_resize, pixel_subtract, resize
 from chainercv.wrappers import output_shape_soft_min_hard_max
 
 from faster_rcnn import FasterRCNN
@@ -16,6 +15,8 @@ from faster_rcnn import FasterRCNN
 if __name__ == '__main__':
     test_data = VOCDetectionDataset(mode='train', use_cache=True, year='2007',
                                     bgr=True)
+    extend(test_data, pixel_subtract)
+    extend(test_data, lambda x: resize(x, (600, 1200)))
     wrappers = [
         lambda d: SubtractWrapper(
             d, value=np.array([103.939, 116.779, 123.68])),
