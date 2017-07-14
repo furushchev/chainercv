@@ -155,7 +155,10 @@ class SSD(chainer.Chain):
         return bboxes, scores
 
     def _suppress(self, raw_bbox, raw_score):
-        xp = self.xp
+        xp = np  # self.xp
+
+        raw_bbox  = chainer.cuda.to_cpu(raw_bbox)
+        raw_score = chainer.cuda.to_cpu(raw_score)
 
         bbox = list()
         label = list()

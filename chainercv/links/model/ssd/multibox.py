@@ -44,7 +44,8 @@ class Multibox(chainer.Chain):
             initialW = initializers.GlorotUniform()
         if initial_bias is None:
             initial_bias = initializers.Zero()
-        init = {'initialW': initialW, 'initial_bias': initial_bias}
+        init = {'initialW': initialW, 'initial_bias': initial_bias,
+                'use_cudnn': False}
 
         for ar in aspect_ratios:
             n = (len(ar) + 1) * 2
@@ -87,7 +88,13 @@ class Multibox(chainer.Chain):
                 conf, (conf.shape[0], -1, self.n_class))
             confs.append(conf)
 
+            loc.to_cpu()
+            conf.to_cpu()
+
         loc = F.concat(locs, axis=1)
         conf = F.concat(confs, axis=1)
+
+        loc.to_gpu()
+        conf.to_gpu()
 
         return loc, conf
