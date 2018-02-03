@@ -35,6 +35,13 @@ CamVidDataset
 Cityscapes
 ----------
 
+COCO
+----
+
+COCOBboxDataset
+~~~~~~~~~~~~~~~~~~~~
+.. autofunction:: COCOBboxDataset
+
 CityscapesSemanticSegmentationDataset
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 .. autoclass:: CityscapesSemanticSegmentationDataset
