@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
 import argparse
 import copy
 import numpy as np
@@ -11,8 +15,9 @@ from chainer import training
 from chainer.training import extensions
 from chainer.training import triggers
 
-from chainercv.datasets import voc_bbox_label_names
 from chainercv.datasets import VOCBboxDataset
+from chainercv.datasets import COCOBboxDataset
+from chainercv.datasets import coco_bbox_label_names
 from chainercv.extensions import DetectionVOCEvaluator
 from chainercv.links.model.ssd import GradientScaling
 from chainercv.links.model.ssd import multibox_loss
@@ -149,9 +154,9 @@ class TransformIterator(chainer.dataset.Iterator):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--model', choices=('ssd300', 'ssd512'), default='ssd300')
+        '--model', choices=('ssd300', 'ssd512'), default='ssd512')
     parser.add_argument('--batchsize', type=int, default=32)
-    parser.add_argument('--test_batchsize', type=int, default=32)
+    parser.add_argument('--test_batchsize', type=int, default=16)
     parser.add_argument('--gpu', type=int, nargs='+')
     parser.add_argument('--out', default='result')
     parser.add_argument('--resume')
@@ -159,11 +164,11 @@ def main():
 
     if args.model == 'ssd300':
         model = SSD300(
-            n_fg_class=len(voc_bbox_label_names),
+            n_fg_class=len(coco_bbox_label_names),
             pretrained_model='imagenet')
     elif args.model == 'ssd512':
         model = SSD512(
-            n_fg_class=len(voc_bbox_label_names),
+            n_fg_class=len(coco_bbox_label_names),
             pretrained_model='imagenet')
 
     model.use_preset('evaluate')
@@ -171,17 +176,13 @@ def main():
     chainer.cuda.get_device_from_id(args.gpu[0]).use()
 
     train = TransformDataset(
-        ConcatenatedDataset(
-            VOCBboxDataset(year='2007', split='trainval'),
-            VOCBboxDataset(year='2012', split='trainval')
-        ),
+        COCOBboxDataset(split='train'),
         Transform(model.coder, model.insize, model.mean))
     train_iter = TransformIterator(
-        chainer.iterators.MultiprocessIterator(train, args.batchsize))
+        chainer.iterators.MultiprocessIterator(
+            train, args.batchsize, n_processes=20))
 
-    test = VOCBboxDataset(
-        year='2007', split='test',
-        use_difficult=True, return_difficult=True)
+    test = COCOBboxDataset(split='val')
     test_iter = chainer.iterators.SerialIterator(
         test, args.test_batchsize, repeat=False, shuffle=False)
 
@@ -200,14 +201,14 @@ def main():
     updater = training.ParallelUpdater(train_iter, optimizer, devices=devices)
     trainer = training.Trainer(updater, (120000, 'iteration'), args.out)
     trainer.extend(
-        extensions.ExponentialShift('lr', 0.1, init=1e-3),
+        extensions.ExponentialShift('lr', 0.1, init=1e-4),
         trigger=triggers.ManualScheduleTrigger([80000, 100000], 'iteration'))
 
     trainer.extend(
         DetectionVOCEvaluator(
             test_iter, model, use_07_metric=True,
-            label_names=voc_bbox_label_names),
-        trigger=(10000, 'iteration'))
+            label_names=coco_bbox_label_names),
+        trigger=(100000, 'iteration'))
 
     log_interval = 10, 'iteration'
     trainer.extend(extensions.LogReport(trigger=log_interval))
@@ -222,10 +223,12 @@ def main():
     trainer.extend(extensions.snapshot(), trigger=(10000, 'iteration'))
     trainer.extend(
         extensions.snapshot_object(model, 'model_iter_{.updater.iteration}'),
-        trigger=(120000, 'iteration'))
+        trigger=(1000, 'iteration'))
 
     if args.resume:
         serializers.load_npz(args.resume, trainer)
+
+    print("Starting to train")
 
     trainer.run()
 

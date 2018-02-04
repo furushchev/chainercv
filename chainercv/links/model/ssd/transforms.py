@@ -281,6 +281,7 @@ def resize_with_random_interpolation(img, size, return_param=False):
     )
     inter = random.choice(inters)
     H, W = size
+    cv2.setNumThreads(0)
     cv_img = cv2.resize(cv_img, (W, H), interpolation=inter)
 
     # If input is a grayscale image, cv2 returns a two-dimentional array.
