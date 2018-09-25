@@ -148,7 +148,7 @@ def main():
         trainer.extend(
             extensions.snapshot_object(
                 model, 'model_iter_{.updater.iteration}'),
-            trigger=(120000, 'iteration'))
+            trigger=(10000, 'iteration'))
 
     if args.resume:
         serializers.load_npz(args.resume, trainer)
